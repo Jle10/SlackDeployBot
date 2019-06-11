@@ -1,0 +1,22 @@
+{
+  "name": "deployqueueapp",
+  "version": "1.0.0",
+  "description": "YA MEJORARE LA DOCU GIVE ME SOME TIME PEOPLE! =)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/zankyou/deployqueueapp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://bitbucket.org/zankyou/deployqueueapp#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "line-reader": "^0.4.0",
+    "request": "^2.88.0"
+  }
+}

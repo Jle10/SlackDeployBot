@@ -1,8 +1,11 @@
 // Import express and request modules
 var express = require('express');
 var request = require('request');
+const lineReader = require('line-reader'); //To read the queue from a txt file.
+const fs = require('fs'); // To store the queue.
 
-const PORT=5000;
+//Apollo URL: http://18.194.23.56:5000/
+const PORT=5005;
 
 // Store our app's ID and Secret. These we got from Step 1. 
 // For this tutorial, we'll keep your API credentials right here. But for an actual app, you'll want to  store them securely in environment variables. 
@@ -56,23 +59,61 @@ app.get('/oauth', function(req, res) {
     }
 });
 
+
+
+//------- LOAD QUEUE (from a .txt file) -----------
+var loadQueue = function() {
+	var index = 0;
+
+	lineReader.eachLine('queue.txt', function(line) {  
+    	console.log(line);
+    	deployList[index] = line;
+    	index++;
+	});
+
+	//res.send('Se ha cargado la última cola guardad de deploy, puedes mostrarla con: /deploy show');
+}
+
 var deployList = [];
-var queue = '';
+var queue = loadQueue();
 
 
 // *********************** FUNCTIONS ***********************************
+//------- STORE QUEUE (as a .txt file) -----------
+var storeQueue = function() {
+	fs.writeFile("queue.txt", getQueue(), function(err) {
+	    if(err) {
+	        return console.log(err);
+	    }
+
+	    console.log("Cola guarda en queue.txt!");
+	}); 
+	//res.send('Cola guardada! Puedes cargarla con /deploy load');
+}
+
 //------- GET DEPLOY QUEUE (as A STRING LIST) -----------
-var getList = function(deployList, queue){
+var printQueue = function() {
+	var deployQueue = '';
+
 	for(i=0; i < deployList.length; i++) {
 		if(i == 0) {
-			queue = (i+1) + '.) *' + deployList[i] + '*\n';
+			deployQueue = (i+1) + '.) *' + deployList[i] + '*\n';
 		}
 		else {
-			queue = queue + (i+1) + '.) *' + deployList[i] + '*\n';
+			deployQueue = deployQueue + (i+1) + '.) *' + deployList[i] + '*\n';
 		}
 	}
 
-	return queue;
+	return deployQueue;
+}
+
+//------- GET DEPLOY QUEUE (as A STRING LIST) -----------
+var getQueue = function() {
+	var queueTXT = '';
+	for(i=0; i < deployList.length; i++) {
+		queueTXT = queueTXT + deployList[i] + '\n';
+	}
+	return queueTXT;
 }
 
 //------- REMOVE user FROM DEPLOY QUEUE ----------------
@@ -86,6 +127,9 @@ var remove = function(user) {
 	console.log('Se ha borrado a -> ' + deployList[0] + ' de la cola');
 	deployList.splice(index, 1);
 	console.log('El siguiente es ->' + deployList[0]);
+
+	storeQueue(); //Actualice the queue.txt
+
 	return true;
 }
 
@@ -131,10 +175,48 @@ var endDeploy = function(req, res, user){
 
 //------- REMOVE user FROM DEPLOY QUEUE ----------------
 var removeDeploy = function(req, res, user) {
+	var time = Math.floor(new Date() / 1000);
 	var isUser = remove(user);
 
 	if(isUser) {
-		res.send('Tu siguiente turno ha sido eliminado de la cola con exito');
+		if(deployList[0] == undefined) {
+			res.send('Tu siguiente turno ha sido eliminado de la cola con exito');
+			//TODO: Notificar al canal de que el deploy ha quedado libre?
+		}
+
+		else {
+			res.status(200).json({
+		    	"response_type": "in_channel",
+		    	"text": '<@' + user + '> ha cedido su turno!',
+		    	"attachments": [
+		        	{
+		            	"text":'¡Es tu turno <@' + deployList[0] + '>!'
+		        	}
+		    	]
+			});
+			//TODO: Notificar al siguiente, si lo hubiera, por privado
+
+			// res.status(200).json({
+			// 	  "channel": "deployList[0]",
+			// 	  "message": {
+			// 	    "attachments": [
+			// 	      {
+			// 	        "fallback": "This is an attachment's fallback",
+			// 	        "id": 1,
+			// 	        "text": "This is an attachment"
+			// 	      }
+			// 	    ],
+			// 	    "bot_id": "AJH3BPBT5",
+			// 	    "subtype": "bot_message",
+			// 	    "text": "Here's a message for you",
+			// 	    "ts": time,
+			// 	    "type": "message",
+			// 	    "username": "deployQueue"
+			// 	  },
+			// 	  "ok": true,
+			// 	  "ts": time
+			// });
+		}
 	}
 	else {
 		res.status(200).json({
@@ -150,7 +232,7 @@ var removeDeploy = function(req, res, user) {
 
 // ---- SHOW DEPLOY QUEUE ---
 var showDeploy = function(req, res, user) {
-	queue = getList(deployList, queue);
+	queue = printQueue();
 
 	if(queue) {
 		res.status(200).json({
@@ -164,7 +246,7 @@ var showDeploy = function(req, res, user) {
 		});
 	}
 	else {
-		res.send("No hay nadie!! *DEPLOY LIBRE* pero no olvides apuntarte con '/deploy'");
+		res.send("No hay nadie!! *DEPLOY LIBRE* pero no olvides apuntarte con '/deploy start'");
 	}
 }
 
@@ -174,7 +256,7 @@ var help = function(res) {
 		"text": "Information about deployQueueAPP!! Here you have some /COMMANDS [params]",
 		"attachments": [
 	    	{
-	        	"text": "/deploy (add yourself to the queue) [add, show, remove, end, help]\n/queue (show the deploy queue) \n/end (remove yourself from the queue)"
+	        	"text": "/deploy [start, show, remove, end, help]\n*'start'* = Add yourself to the queue \n*'end'* = remove yourself from the queue and notify next turn\n*'remove'* = remove yourself from the queue\n *'show'* = Show dpeloy queue"
 	    	}
 		]
 	});
@@ -186,12 +268,14 @@ var deploy = function(req, res, user) {
 
 	deployList.push(user);
 
-	queue = getList(deployList, queue);
+	storeQueue(); //Actualice the queue.txt
+
+	queue = printQueue();
 
 	if(deployList[1] == undefined) {
 		 res.status(200).json({
 			"response_type": "in_channel",
-			"text": "<!channel>!!! <@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|caca>* \nEsto son los turnos: ",
+			"text": "<!channel>!!! <@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \nEsto son los turnos: ",
 			"attachments": [
 		    	{
 		        	"text": queue
@@ -202,7 +286,7 @@ var deploy = function(req, res, user) {
 	else {
 		 res.status(200).json({
 			"response_type": "in_channel",
-			"text": "<@" + user + "> ha sido añadido a la cola -- *<!date^"+ time +"^{time}|caca>* \nEsto son los turnos: ",
+			"text": "<@" + user + "> ha sido añadido a la cola \nEsto son los turnos: ",
 			"attachments": [
 		    	{
 		        	"text": queue
@@ -219,7 +303,7 @@ app.post('/deploy', function(req, res) {
 	var canal = req.body.channel_id;
 
 	switch(params){
-		case 'add':
+		case 'start':
 			deploy(req, res, user);
 			break;
 		case 'end':
@@ -234,8 +318,15 @@ app.post('/deploy', function(req, res) {
 		case 'help':
 			help(res);
 			break;
+		case 'store':
+			storeQueue();
+			break;
+		case 'load':
+			loadQueue();
+			break;
+
 		default:
-			deploy(req, res, user);
+			help(res);
 	}
 });
 
