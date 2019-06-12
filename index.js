@@ -5,7 +5,7 @@ const lineReader = require('line-reader'); //To read the queue from a txt file.
 const fs = require('fs'); // To store the queue.
 
 //Apollo URL: http://18.194.23.56:5000/
-const PORT=5005;
+const PORT=5000;
 
 // Store our app's ID and Secret. These we got from Step 1. 
 // For this tutorial, we'll keep your API credentials right here. But for an actual app, you'll want to  store them securely in environment variables. 
