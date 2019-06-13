@@ -275,7 +275,7 @@ var deploy = function(req, res, user) {
 	if(deployList[1] == undefined) {
 		 res.status(200).json({
 			"response_type": "in_channel",
-			"text": "<!channel>!!! <@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \nEsto son los turnos: ",
+			"text": "<@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \nEsto son los turnos: ",
 			"attachments": [
 		    	{
 		        	"text": queue
