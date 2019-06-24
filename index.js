@@ -1,6 +1,8 @@
 // Import express and request modules
 var express = require('express');
 var request = require('request');
+var bodyParser = require('body-parser'); //Para poder leer los POST que hagan
+var urlencodedParser = bodyParser.urlencoded({ extended: false });
 const lineReader = require('line-reader'); //To read the queue from a txt file.
 const fs = require('fs'); // To store the queue.
 
@@ -15,8 +17,7 @@ var clientSecret = 'bcb9211ab8a2256b583bfb899e8a8600';
 // Instantiates Express and assigns our app variable to it
 var app = express();
 
-//Para poder leer los POST que hagan
-var bodyParser = require('body-parser');
+
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
@@ -25,7 +26,6 @@ app.listen(PORT, function () {
     //Callback triggered when server is successfully listening. Hurray!
     console.log("deployQueueAPP ejecutada con exito en el puerto: " + PORT);
 });
-
 
 // This route handles GET requests to our root ngrok address and responds with the same "Ngrok is working message" we used before
 app.get('/', function(req, res) {
@@ -59,7 +59,7 @@ app.get('/oauth', function(req, res) {
     }
 });
 
-
+//TODO: Cambiar todo los "var XXX = function() por "function XXX()"
 
 //------- LOAD QUEUE (from a .txt file) -----------
 var loadQueue = function() {
@@ -72,7 +72,7 @@ var loadQueue = function() {
 	});
 
 	//res.send('Se ha cargado la última cola guardad de deploy, puedes mostrarla con: /deploy show');
-}
+};
 
 var deployList = [];
 var queue = loadQueue();
@@ -89,14 +89,14 @@ var storeQueue = function() {
 	    console.log("Cola guarda en queue.txt!");
 	}); 
 	//res.send('Cola guardada! Puedes cargarla con /deploy load');
-}
+};
 
 //------- GET DEPLOY QUEUE (as A STRING LIST) -----------
 var printQueue = function() {
 	var deployQueue = '';
 
 	for(i=0; i < deployList.length; i++) {
-		if(i == 0) {
+		if(i === 0) {
 			deployQueue = (i+1) + '.) *' + deployList[i] + '*\n';
 		}
 		else {
@@ -105,7 +105,7 @@ var printQueue = function() {
 	}
 
 	return deployQueue;
-}
+};
 
 //------- GET DEPLOY QUEUE (as A STRING LIST) -----------
 var getQueue = function() {
@@ -114,7 +114,7 @@ var getQueue = function() {
 		queueTXT = queueTXT + deployList[i] + '\n';
 	}
 	return queueTXT;
-}
+};
 
 //------- REMOVE user FROM DEPLOY QUEUE ----------------
 var remove = function(user) {
@@ -131,14 +131,14 @@ var remove = function(user) {
 	storeQueue(); //Actualice the queue.txt
 
 	return true;
-}
+};
 
 //------- REMOVE user FROM QUEUE and WARNS the CHAT that the turn is over ----------------
 var endDeploy = function(req, res, user){
 	var isUser = remove(user);
 
 	if(isUser) {
-		if(deployList[0] == undefined){
+		if(deployList[0] === undefined){
 		    res.status(200).json({
 		    	"response_type": "in_channel",
 		    	"text": '<@' + user + '> ha terminado el deploy!',
@@ -171,64 +171,57 @@ var endDeploy = function(req, res, user){
 			]
 		});
 	}
-}
+};
 
 //------- REMOVE user FROM DEPLOY QUEUE ----------------
 var removeDeploy = function(req, res, user) {
-	var time = Math.floor(new Date() / 1000);
-	var isUser = remove(user);
 
-	if(isUser) {
-		if(deployList[0] == undefined) {
-			res.send('Tu siguiente turno ha sido eliminado de la cola con exito');
-			//TODO: Notificar al canal de que el deploy ha quedado libre?
-		}
+	if(deployList[0] === user) {
+		remove(user);
+		res.status(200).json({
+			"response_type": "in_channel",
+			"text": '<@' + user + '> ha cedido su turno!',
+			"attachments": [
+				{
+					"text":'¡Es tu turno <@' + deployList[0] + '>!'
+				}
+			]
+		});
+		//TODO: Notificar al siguiente, si lo hubiera, por privado
 
-		else {
-			res.status(200).json({
-		    	"response_type": "in_channel",
-		    	"text": '<@' + user + '> ha cedido su turno!',
-		    	"attachments": [
-		        	{
-		            	"text":'¡Es tu turno <@' + deployList[0] + '>!'
-		        	}
-		    	]
-			});
-			//TODO: Notificar al siguiente, si lo hubiera, por privado
-
-			// res.status(200).json({
-			// 	  "channel": "deployList[0]",
-			// 	  "message": {
-			// 	    "attachments": [
-			// 	      {
-			// 	        "fallback": "This is an attachment's fallback",
-			// 	        "id": 1,
-			// 	        "text": "This is an attachment"
-			// 	      }
-			// 	    ],
-			// 	    "bot_id": "AJH3BPBT5",
-			// 	    "subtype": "bot_message",
-			// 	    "text": "Here's a message for you",
-			// 	    "ts": time,
-			// 	    "type": "message",
-			// 	    "username": "deployQueue"
-			// 	  },
-			// 	  "ok": true,
-			// 	  "ts": time
-			// });
-		}
-	}
-	else {
+		// res.status(200).json({
+		// 	  "channel": "deployList[0]",
+		// 	  "message": {
+		// 	    "attachments": [
+		// 	      {
+		// 	        "fallback": "This is an attachment's fallback",
+		// 	        "id": 1,
+		// 	        "text": "This is an attachment"
+		// 	      }
+		// 	    ],
+		// 	    "bot_id": "AJH3BPBT5",
+		// 	    "subtype": "bot_message",
+		// 	    "text": "Here's a message for you",
+		// 	    "ts": time,
+		// 	    "type": "message",
+		// 	    "username": "deployQueue"
+		// 	  },
+		// 	  "ok": true,
+		// 	  "ts": time
+		// });
+	} else if(remove(user)) {
+		res.send('Tu siguiente turno ha sido eliminado de la cola con exito');
+	} else {
 		res.status(200).json({
 			"text": "¡No tienes turno en la cola!",
 			"attachments": [
 		    	{
-		        	"text": "Puedes apuntarte con /deploy"
+		        	"text": "Puedes apuntarte con *'/deploy start'*"
 		    	}
 			]
 		});
 	}
-}
+};
 
 // ---- SHOW DEPLOY QUEUE ---
 var showDeploy = function(req, res, user) {
@@ -248,7 +241,7 @@ var showDeploy = function(req, res, user) {
 	else {
 		res.send("No hay nadie!! *DEPLOY LIBRE* pero no olvides apuntarte con '/deploy start'");
 	}
-}
+};
 
 // ---- INFO ABOUT THE APP ---
 var help = function(res) {
@@ -260,7 +253,7 @@ var help = function(res) {
 	    	}
 		]
 	});
-}
+};
 
 // ---- ADD TO QUEUE ---
 var deploy = function(req, res, user) {
@@ -272,7 +265,7 @@ var deploy = function(req, res, user) {
 
 	queue = printQueue();
 
-	if(deployList[1] == undefined) {
+	if(deployList[1] === undefined) {
 		 res.status(200).json({
 			"response_type": "in_channel",
 			"text": "<@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \nEsto son los turnos: ",
@@ -294,13 +287,85 @@ var deploy = function(req, res, user) {
 			]
 		});
 	}
-}
+};
 
+var clearQueue = function(req, res) {
+	res.status(200).end(); //Parece que segun la API es la mejor practica para devolver un 200
+
+	var responseURL = req.body.url;
+	if (req.body.token !== 'yOjuxAxUt3k1apbTiH1JW9r9') { //Testeando validacion de token
+		res.status(403).end("Acceso Denagado")
+	} else {
+		var message = {
+			'text': 'Empieza la votación para limpiar la cola!',
+			'attachments': [
+				{
+					'text': 'Elegi una de las siguientes opciones!',
+					'fallback': 'Whooops! Algo no va bien',
+					'callback_id': 'vote_buttons',
+					'color': '#5baaa1',
+					'attachment_type': 'default',
+					'actions': [
+						{
+							'name'  : 'si',
+							'text'  : 'SI!',
+							'type:' : 'button',
+							'value' : 'yes'
+						},
+						{
+							'name'  : 'no',
+							'text'  : 'OH NO!',
+							'type:' : 'button',
+							'value' : 'no',
+							'style' : 'danger'
+						}
+					]
+				}
+			]
+		};
+
+		res.status(200).json(message);
+
+
+
+		// sendMessageToSlack(message, responseURL);
+	}
+};
+
+var sendMessageToSlack = function(message, url){
+	var sendPost = {
+		uri: url,
+		method: 'POST',
+		header: {
+			'Content-type': 'application/json'
+		},
+		json: JSONmessage
+	};
+
+	request(sendPost, (error, response, body) => {
+		if(error) {
+			response.status(403).end("Error al enviar las opciones en POST")
+		}
+	});
+};
 // *********************** SLASH COMMANDS ***********************************
+
+//Manage the slash commands that will generate button responses
+app.post('/slack/actions', urlencodedParser, (req, res) => {
+	res.status(200).end();
+
+	var actionJSONPayload = JSON.parse(req.body.payload); // parse URL-encoded payload JSON string
+	var message = {
+		"text": actionJSONPayload.user.name + " clicked: " + actionJSONPayload.actions[0].name,
+		"replace_original": false
+	};
+
+	sendMessageToSlack(actionJSONPayload.response_url, message);
+});
+
 app.post('/deploy', function(req, res) {
 	var user = req.body.user_name;
 	var params = req.body.text;
-	var canal = req.body.channel_id;
 
 	switch(params){
 		case 'start':
@@ -325,6 +390,11 @@ app.post('/deploy', function(req, res) {
 			loadQueue();
 			break;
 
+		//TODO: Esta haciendose en appTEST
+
+		// case 'clear':
+		// 	clearQueue(req, res);
+		// 	break;
 		default:
 			help(res);
 	}
