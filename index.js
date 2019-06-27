@@ -176,7 +176,7 @@ var endDeploy = function(req, res, user){
 //------- REMOVE user FROM DEPLOY QUEUE ----------------
 var removeDeploy = function(req, res, user) {
 
-	if(deployList[0] === user) {
+	if(deployList[0] === user && deployList[1] !== undefined) {
 		remove(user);
 		res.status(200).json({
 			"response_type": "in_channel",
