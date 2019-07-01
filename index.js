@@ -190,7 +190,7 @@ var removeDeploy = function(req, res, user) {
 		//TODO: Notificar al siguiente, si lo hubiera, por privado
 
 		// res.status(200).json({
-		// 	  "channel": "deployList[0]",
+		// 	  "channel": deployList[0],
 		// 	  "message": {
 		// 	    "attachments": [
 		// 	      {
