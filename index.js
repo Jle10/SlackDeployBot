@@ -6,6 +6,9 @@ var urlencodedParser = bodyParser.urlencoded({ extended: false });
 const lineReader = require('line-reader'); //To read the queue from a txt file.
 const fs = require('fs'); // To store the queue.
 
+//Import commands
+const Help = require('./commands/help.js');
+
 //Apollo URL: http://18.194.23.56:5000/
 const PORT=5000;
 
@@ -289,18 +292,27 @@ var deploy = function(req, res, user) {
 	}
 };
 
+//Manage the slash commands that will generate button responses
+var voteYes = 0;
+var voteNo = 0;
+var zkcrew = [];
+
 var clearQueue = function(req, res) {
 	res.status(200).end(); //Parece que segun la API es la mejor practica para devolver un 200
+	voteYes = 0;//Reset values after the vote starts
+	voteNo = 0;
+	zkcrew = [];
 
-	var responseURL = req.body.url;
+	var responseURL = req.body.response_url;
 	if (req.body.token !== 'yOjuxAxUt3k1apbTiH1JW9r9') { //Testeando validacion de token
 		res.status(403).end("Acceso Denagado")
-	} else {
+	} else if(deployList !== undefined) {
 		var message = {
-			'text': 'Empieza la votación para limpiar la cola!',
+			'response_type': 'in_channel',
+			'text': '<!channel> *Empieza la votacion para limpiar la cola!*',
 			'attachments': [
 				{
-					'text': 'Elegi una de las siguientes opciones!',
+					'text': 'Se necesitan un mínimo de *3 VOTOS* "SI"',
 					'fallback': 'Whooops! Algo no va bien',
 					'callback_id': 'vote_buttons',
 					'color': '#5baaa1',
@@ -309,13 +321,13 @@ var clearQueue = function(req, res) {
 						{
 							'name'  : 'si',
 							'text'  : 'SI!',
-							'type:' : 'button',
+							'type' : 'button',
 							'value' : 'yes'
 						},
 						{
 							'name'  : 'no',
-							'text'  : 'OH NO!',
-							'type:' : 'button',
+							'text'  : 'NO, PLEASE NO!!',
+							'type' : 'button',
 							'value' : 'no',
 							'style' : 'danger'
 						}
@@ -323,51 +335,114 @@ var clearQueue = function(req, res) {
 				}
 			]
 		};
-
-		res.status(200).json(message);
-
-
-
-		// sendMessageToSlack(message, responseURL);
+		sendMessageToSlack(message, responseURL);
+	} else {
+		message = {
+			'attachments': [
+				{
+					'text': 'No hay cola de deploy que borrar CABESA!!!',
+					'fallback': 'Whooops! Algo no va bien',
+					'callback_id': 'vote_buttons',
+					'color': '#aa0003',
+					'attachment_type': 'default',
+				}
+			]
+		};
+		sendMessageToSlack(message, responseURL)
 	}
 };
 
 var sendMessageToSlack = function(message, url){
 	var sendPost = {
-		uri: url,
 		method: 'POST',
 		header: {
 			'Content-type': 'application/json'
 		},
-		json: JSONmessage
+		json: message
 	};
 
-	request(sendPost, (error, response, body) => {
-		if(error) {
-			response.status(403).end("Error al enviar las opciones en POST")
-		}
-	});
+	request(url, sendPost);
 };
-// *********************** SLASH COMMANDS ***********************************
 
-//Manage the slash commands that will generate button responses
-app.post('/slack/actions', urlencodedParser, (req, res) => {
+// *********************** SLASH COMMANDS ***********************************
+//Manage the slash commands that will generate interactive messages
+app.post('/actions', urlencodedParser, function(req, res){
 	res.status(200).end();
 
 	var actionJSONPayload = JSON.parse(req.body.payload); // parse URL-encoded payload JSON string
+
+	var check = ':negative_squared_cross_mark: ';
+	if(actionJSONPayload.actions[0].name === 'si') {
+		check = ':ballot_box_with_check:';
+	}
+
 	var message = {
-		"text": actionJSONPayload.user.name + " clicked: " + actionJSONPayload.actions[0].name,
+		"text": check + " Has votado: *" + actionJSONPayload.actions[0].name + "*!!",
 		"replace_original": false
 	};
 
-	sendMessageToSlack(actionJSONPayload.response_url, message);
+	console.log('VOTACIÓN: ' + actionJSONPayload.user.name + " votó: " + actionJSONPayload.actions[0].name);
+
+	if(actionJSONPayload.callback_id === 'vote_buttons') {
+
+		if(zkcrew.indexOf(actionJSONPayload.user.name) === -1) {
+			zkcrew.push(actionJSONPayload.user.name);
+
+			if (voteYes === 2) {
+				message = {
+					"response_type": "in_channel",
+					"attachments": [
+						{
+							"text": "Se han conseguido 3 votos! se BORRA la cola del deploy!!\nSe cierra la votación: *DEPLOY LIBRE!*",
+							"color": "#16ff00"
+						}
+					],
+					"replace_original": true
+				};
+
+				deployList = [];
+				storeQueue();
+
+			} else if(voteNo === 2) {
+				message = {
+					"response_type": "in_channel",
+					"attachments": [
+						{
+							"text": "Se ha votado *NO* 3 veces! no se BORRARÁ la cola del deploy!!\nSe cierra la votación",
+							"color": "#ff0000"
+						}
+					],
+					"replace_original": true
+				};
+
+			} else {
+				if(actionJSONPayload.actions[0].name === 'si') {
+					voteYes++;
+				} else {
+					voteNo++;
+				}
+			}
+		} else {
+			message = {
+				"text": "Ya has votado :sweat_smile:!! Espera a que termine la votación para saber el resultado :wink:",
+				"replace_original": false
+			};
+		}
+
+		sendMessageToSlack(message, actionJSONPayload.response_url);
+
+		console.log('Acumulados ' + voteYes + ' Sí');
+		console.log('Acumulados ' + voteNo + ' No');
+	}
 });
 
 app.post('/deploy', function(req, res) {
 	var user = req.body.user_name;
-	var params = req.body.text;
+	var params = req.body.text.split(" ");
 
-	switch(params){
+	var help = new Help(res);
+
+	switch(params[0]){
 		case 'start':
 			deploy(req, res, user);
 			break;
@@ -378,10 +453,10 @@ app.post('/deploy', function(req, res) {
 			removeDeploy(req, res, user);
 			break;
 		case 'show':
-			showDeploy(req, res, user);
+			showDeploy(req, res);
 			break;
 		case 'help':
-			help(res);
+			help.send();
 			break;
 		case 'store':
 			storeQueue();
@@ -389,14 +464,12 @@ app.post('/deploy', function(req, res) {
 		case 'load':
 			loadQueue();
 			break;
-
-		//TODO: Esta haciendose en appTEST
-
-		// case 'clear':
-		// 	clearQueue(req, res);
-		// 	break;
+		case 'clear':
+			clearQueue(req, res);
+			break;
 		default:
-			help(res);
+			help.send();
 	}
 });
+
 
