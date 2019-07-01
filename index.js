@@ -20,7 +20,6 @@ var clientSecret = 'bcb9211ab8a2256b583bfb899e8a8600';
 // Instantiates Express and assigns our app variable to it
 var app = express();
 
-
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
@@ -74,12 +73,11 @@ var loadQueue = function() {
     	index++;
 	});
 
-	//res.send('Se ha cargado la última cola guardad de deploy, puedes mostrarla con: /deploy show');
+	//res.send('Se ha cargado la última cola guardada de deploy, puedes mostrarla con: /deploy show');
 };
 
 var deployList = [];
 var queue = loadQueue();
-
 
 // *********************** FUNCTIONS ***********************************
 //------- STORE QUEUE (as a .txt file) -----------
@@ -138,52 +136,12 @@ var remove = function(user) {
 
 //------- REMOVE user FROM QUEUE and WARNS the CHAT that the turn is over ----------------
 var endDeploy = function(req, res, user){
-	var isUser = remove(user);
-
-	if(isUser) {
-		if(deployList[0] === undefined){
-		    res.status(200).json({
-		    	"response_type": "in_channel",
-		    	"text": '<@' + user + '> ha terminado el deploy!',
-		    	"attachments": [
-		        	{
-		            	"text":"¡No hay nadie en la cola: *DEPLOY LIBRE*!"
-		        	}
-		    	]
-			});
-		}
-		else {
-		    res.status(200).json({
-		    	"response_type": "in_channel",
-		    	"text": '<@' + user + '> ha terminado el deploy!',
-		    	"attachments": [
-		        	{
-		            	"text":'¡Es tu turno <@' + deployList[0] + '>!'
-		        	}
-		    	]
-			});
-		}
-	}
-	else {
-		res.status(200).json({
-			"text": "¡No estas en la cola!",
-			"attachments": [
-		    	{
-		        	"text": "Puedes apuntarte con /deploy"
-		    	}
-			]
-		});
-	}
-};
-
-//------- REMOVE user FROM DEPLOY QUEUE ----------------
-var removeDeploy = function(req, res, user) {
 
 	if(deployList[0] === user && deployList[1] !== undefined) {
 		remove(user);
 		res.status(200).json({
 			"response_type": "in_channel",
-			"text": '<@' + user + '> ha cedido su turno!',
+			"text": '<@' + user + '> ha terminado!',
 			"attachments": [
 				{
 					"text":'¡Es tu turno <@' + deployList[0] + '>!'
@@ -218,16 +176,23 @@ var removeDeploy = function(req, res, user) {
 		res.status(200).json({
 			"text": "¡No tienes turno en la cola!",
 			"attachments": [
-		    	{
-		        	"text": "Puedes apuntarte con *'/deploy start'*"
-		    	}
+				{
+					"text": "Puedes apuntarte con *'/deploy start'*"
+				}
 			]
 		});
 	}
 };
 
+//------- REMOVE user FROM DEPLOY QUEUE ----------------
+var removeDeploy = function(req, res, user) {
+	res.status(200).json({
+		"text": 'Este comando ha sido eliminado prueba con */deploy end',
+	});
+};
+
 // ---- SHOW DEPLOY QUEUE ---
-var showDeploy = function(req, res, user) {
+var showDeploy = function(req, res) {
 	queue = printQueue();
 
 	if(queue) {
@@ -235,9 +200,10 @@ var showDeploy = function(req, res, user) {
 			"response_type": "in_channel",
 			"text": "Esto son los turnos: \n",
 			"attachments": [
-		    	{
-		        	"text": queue
-		    	}
+				{
+					"text": queue,
+					"color": "#0011bd"
+				}
 			]
 		});
 	}
@@ -246,47 +212,35 @@ var showDeploy = function(req, res, user) {
 	}
 };
 
-// ---- INFO ABOUT THE APP ---
-var help = function(res) {
-    res.status(200).json({
-		"text": "Information about deployQueueAPP!! Here you have some /COMMANDS [params]",
-		"attachments": [
-	    	{
-	        	"text": "/deploy [start, show, remove, end, help]\n*'start'* = Add yourself to the queue \n*'end'* = remove yourself from the queue and notify next turn\n*'remove'* = remove yourself from the queue\n *'show'* = Show dpeloy queue"
-	    	}
-		]
-	});
-};
-
 // ---- ADD TO QUEUE ---
 var deploy = function(req, res, user) {
 	var time = Math.floor(new Date() / 1000);
 
-	deployList.push(user);
-
+	deployList.push(user); //Insert new User's deploy turn
+	queue = printQueue(); //Give format to the queue string that is going to be printed
 	storeQueue(); //Actualice the queue.txt
 
-	queue = printQueue();
-
 	if(deployList[1] === undefined) {
-		 res.status(200).json({
+		res.status(200).json({
 			"response_type": "in_channel",
 			"text": "<@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \nEsto son los turnos: ",
 			"attachments": [
-		    	{
-		        	"text": queue
-		    	}
+				{
+					"text": queue,
+					"color": "#0011bd"
+				}
 			]
 		});
 	}
 	else {
-		 res.status(200).json({
+		res.status(200).json({
 			"response_type": "in_channel",
 			"text": "<@" + user + "> ha sido añadido a la cola \nEsto son los turnos: ",
 			"attachments": [
-		    	{
-		        	"text": queue
-		    	}
+				{
+					"text": queue,
+					"color": "#0011bd"
+				}
 			]
 		});
 	}
@@ -393,7 +347,8 @@ app.post('/actions', urlencodedParser, function(req, res){
 					"response_type": "in_channel",
 					"attachments": [
 						{
-							"text": "Se han conseguido 3 votos! se BORRA la cola del deploy!!\nSe cierra la votación: *DEPLOY LIBRE!*",
+							"text": "Se han conseguido 3 votos! se BORRA la cola del deploy!!\n" +
+									"Se cierra la votación: *DEPLOY LIBRE!*",
 							"color": "#16ff00"
 						}
 					],
@@ -408,7 +363,8 @@ app.post('/actions', urlencodedParser, function(req, res){
 					"response_type": "in_channel",
 					"attachments": [
 						{
-							"text": "Se ha votado *NO* 3 veces! no se BORRARÁ la cola del deploy!!\nSe cierra la votación",
+							"text": "Se ha votado *NO* 3 veces! no se BORRARÁ la cola del deploy!!\n" +
+									"Se cierra la votación",
 							"color": "#ff0000"
 						}
 					],
@@ -458,12 +414,12 @@ app.post('/deploy', function(req, res) {
 		case 'help':
 			help.send();
 			break;
-		case 'store':
-			storeQueue();
-			break;
-		case 'load':
-			loadQueue();
-			break;
+	// case 'store':
+		// 	storeQueue();
+		// 	break;
+	// case 'load':
+		// 	loadQueue();
+			//break;
 		case 'clear':
 			clearQueue(req, res);
 			break;
@@ -471,5 +427,4 @@ app.post('/deploy', function(req, res) {
 			help.send();
 	}
 });
-
 
