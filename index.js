@@ -171,7 +171,20 @@ var endDeploy = function(req, res, user){
 		// 	  "ts": time
 		// });
 	} else if(remove(user)) {
-		res.send('Tu siguiente turno ha sido eliminado de la cola con exito');
+		if(deployList[0] === undefined) {
+			res.status(200).json({
+				"response_type": "in_channel",
+				"text": "¡No hay nadie en la cola! ",
+				"attachments": [
+					{
+						"text": "*DEPLOY LIBRE*",
+						"color": "#00fb04"
+					}
+				]
+			});
+		} else {
+			res.send('Tu siguiente turno ha sido eliminado de la cola con exito');
+		}
 	} else {
 		res.status(200).json({
 			"text": "¡No tienes turno en la cola!",
@@ -187,7 +200,7 @@ var endDeploy = function(req, res, user){
 //------- REMOVE user FROM DEPLOY QUEUE ----------------
 var removeDeploy = function(req, res, user) {
 	res.status(200).json({
-		"text": 'Este comando ha sido eliminado prueba con */deploy end',
+		"text": 'Este comando ha sido eliminado! Prueba con */deploy end*',
 	});
 };
 
@@ -208,7 +221,7 @@ var showDeploy = function(req, res) {
 		});
 	}
 	else {
-		res.send("No hay nadie!! *DEPLOY LIBRE* pero no olvides apuntarte con '/deploy start'");
+		res.send("*DEPLOY LIBRE* --> No olvides apuntarte con '/deploy start'");
 	}
 };
 
@@ -223,7 +236,8 @@ var deploy = function(req, res, user) {
 	if(deployList[1] === undefined) {
 		res.status(200).json({
 			"response_type": "in_channel",
-			"text": "<@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \nEsto son los turnos: ",
+			"text": "<@" + user + "> ha empezado un deploy/debug en PROD -- *<!date^"+ time +"^{time}|Algo va mal con la fecha>* \n" +
+					"Esto son los turnos: ",
 			"attachments": [
 				{
 					"text": queue,
@@ -235,7 +249,8 @@ var deploy = function(req, res, user) {
 	else {
 		res.status(200).json({
 			"response_type": "in_channel",
-			"text": "<@" + user + "> ha sido añadido a la cola \nEsto son los turnos: ",
+			"text": "<@" + user + "> ha sido añadido a la cola \n" +
+					"Esto son los turnos: ",
 			"attachments": [
 				{
 					"text": queue,
