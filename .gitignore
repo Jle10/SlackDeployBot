@@ -1,2 +1,4 @@
 node_modules/
 .idea
+queue.txt
+.idea/workspace.xml
