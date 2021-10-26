@@ -8,6 +8,7 @@ const fs = require('fs'); // To store the queue.
 
 //Import commands
 const Help = require('./commands/help.js');
+const File = require('./functions/file.js');
 
 //Apollo URL: http://18.194.23.56:5000/
 const PORT=5000;
@@ -65,15 +66,8 @@ app.get('/oauth', function(req, res) {
 
 //------- LOAD QUEUE (from a .txt file) -----------
 var loadQueue = function() {
-	var index = 0;
-
-	lineReader.eachLine('queue.txt', function(line) {  
-    	console.log(line);
-    	deployList[index] = line;
-    	index++;
-	});
-
-	//res.send('Se ha cargado la última cola guardada de deploy, puedes mostrarla con: /deploy show');
+	var loader = new File();
+	loader.read();
 };
 
 var deployList = [];
@@ -82,14 +76,8 @@ var queue = loadQueue();
 // *********************** FUNCTIONS ***********************************
 //------- STORE QUEUE (as a .txt file) -----------
 var storeQueue = function() {
-	fs.writeFile("queue.txt", getQueue(), function(err) {
-	    if(err) {
-	        return console.log(err);
-	    }
-
-	    console.log("Cola guarda en queue.txt!");
-	}); 
-	//res.send('Cola guardada! Puedes cargarla con /deploy load');
+	var loader = new File();
+	loader.write();
 };
 
 //------- GET DEPLOY QUEUE (as A STRING LIST) -----------
@@ -284,7 +272,7 @@ var clearQueue = function(req, res) {
 					'text': 'Se necesitan un mínimo de *3 VOTOS* "SI"',
 					'fallback': 'Whooops! Algo no va bien',
 					'callback_id': 'vote_buttons',
-					'color': '#5baaa1',
+					'color': '#f2ff00',
 					'attachment_type': 'default',
 					'actions': [
 						{
